@@ -1,9 +1,3 @@
-"""Evaluators: score a model response against a case's expected criteria.
-
-Every evaluator function has the signature ``(actual: str, expected: dict,
-options: dict) -> EvaluationResult`` and returns a score in [0, 1] plus a
-boolean pass/fail and a human-readable explanation.
-"""
 from __future__ import annotations
 
 import re
@@ -25,7 +19,6 @@ def _normalize(text: str) -> str:
 
 
 def exact_match(actual: str, expected: dict[str, Any], options: dict[str, Any]) -> EvaluationResult:
-    """Score 1.0 if ``actual`` equals ``expected['value']`` exactly (or case-insensitively)."""
     target = expected.get("value", expected.get("output", ""))
     case_sensitive = bool(options.get("case_sensitive", False))
 
@@ -43,11 +36,6 @@ def exact_match(actual: str, expected: dict[str, Any], options: dict[str, Any]) 
 
 
 def contains(actual: str, expected: dict[str, Any], options: dict[str, Any]) -> EvaluationResult:
-    """Score 1.0 if all required substrings appear in ``actual``.
-
-    ``expected['value']`` may be a single string or a list of strings, all
-    of which must be present (case-insensitive by default).
-    """
     raw_targets = expected.get("value", expected.get("contains", []))
     targets: list[str] = [raw_targets] if isinstance(raw_targets, str) else list(raw_targets)
     case_sensitive = bool(options.get("case_sensitive", False))
@@ -67,7 +55,6 @@ def contains(actual: str, expected: dict[str, Any], options: dict[str, Any]) -> 
 
 
 def regex_match(actual: str, expected: dict[str, Any], options: dict[str, Any]) -> EvaluationResult:
-    """Score 1.0 if ``expected['pattern']`` matches somewhere in ``actual``."""
     pattern = expected.get("pattern", expected.get("value", ""))
     flags = re.IGNORECASE if options.get("case_insensitive", True) else 0
 
@@ -99,13 +86,6 @@ def _tokenize(text: str) -> set[str]:
 
 
 def keyword_overlap(actual: str, expected: dict[str, Any], options: dict[str, Any]) -> EvaluationResult:
-    """Simple keyword/semantic-overlap scorer.
-
-    Tokenizes both ``actual`` and the expected reference text (stripping
-    stopwords), then scores by the fraction of expected keywords present in
-    the actual response (Jaccard-like recall). Passes when the overlap is
-    at or above ``options['min_overlap']`` (default 0.5).
-    """
     reference = str(expected.get("reference", expected.get("value", "")))
     min_overlap = float(options.get("min_overlap", 0.5))
 

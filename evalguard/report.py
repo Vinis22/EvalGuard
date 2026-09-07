@@ -1,4 +1,3 @@
-"""Generates JSON (machine-readable) and HTML (human-readable) reports."""
 from __future__ import annotations
 
 import json
@@ -14,10 +13,6 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
 def _run_to_dict(run: RunResult) -> dict[str, Any]:
-    """Serialize a RunResult into the JSON shape consumed by the CLI report
-    and the frontend/index.html viewer. Keep this shape stable — the
-    frontend depends on it.
-    """
     return {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -81,7 +76,6 @@ def write_html_report(run: RunResult, output_path: str | Path) -> Path:
 
 
 def generate_reports(run: RunResult, report_dir: str | Path) -> tuple[Path, Path]:
-    """Write both JSON and HTML reports into ``report_dir``. Returns (json_path, html_path)."""
     report_dir = Path(report_dir)
     json_path = write_json_report(run, report_dir / "report.json")
     html_path = write_html_report(run, report_dir / "report.html")

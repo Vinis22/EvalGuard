@@ -1,4 +1,3 @@
-"""EvalGuard command-line interface."""
 from __future__ import annotations
 
 import shutil
@@ -30,7 +29,6 @@ def run(
     ),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress the per-case table output."),
 ) -> None:
-    """Run an eval suite defined by CONFIG_PATH and generate HTML + JSON reports."""
     config_path = config_path.resolve()
     base_dir = config_path.parent
 
@@ -84,7 +82,6 @@ def init(
         Path("."), help="Directory to scaffold a new EvalGuard eval project into."
     ),
 ) -> None:
-    """Scaffold a new eval project with an example config and dataset."""
     target_dir = target_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 

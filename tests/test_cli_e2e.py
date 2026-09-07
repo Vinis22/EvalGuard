@@ -1,4 +1,3 @@
-"""End-to-end test running the actual CLI against the bundled examples."""
 import json
 from pathlib import Path
 

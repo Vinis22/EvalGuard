@@ -1,4 +1,3 @@
-"""JSONL dataset loading for EvalGuard."""
 from __future__ import annotations
 
 import json
@@ -9,7 +8,6 @@ from pydantic import BaseModel, Field
 
 
 class EvalCase(BaseModel):
-    """A single test case: input variables plus expected criteria."""
 
     id: str
     inputs: dict[str, Any] = Field(default_factory=dict)
@@ -18,12 +16,6 @@ class EvalCase(BaseModel):
 
 
 def load_dataset(dataset_path: str | Path) -> list[EvalCase]:
-    """Load a JSONL dataset file into a list of EvalCase objects.
-
-    Each non-blank line must be a JSON object with at least ``inputs`` and
-    ``expected`` keys. An ``id`` is auto-generated from the line number if
-    not provided.
-    """
     dataset_path = Path(dataset_path)
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")

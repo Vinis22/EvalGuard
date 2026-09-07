@@ -1,4 +1,3 @@
-"""Orchestrates a full EvalGuard run: render -> generate -> evaluate -> aggregate."""
 from __future__ import annotations
 
 import time
@@ -60,7 +59,6 @@ def _score_case(config: EvalGuardConfig, case: EvalCase, actual: str) -> tuple[l
 
 
 def run_eval(config: EvalGuardConfig, base_dir: Path) -> RunResult:
-    """Execute the full eval pipeline described by ``config`` and return results."""
     started = time.perf_counter()
 
     dataset_path = config.resolve_dataset_path(base_dir)

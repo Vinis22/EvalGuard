@@ -1,4 +1,3 @@
-"""Pydantic models and loader for EvalGuard YAML config files."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,7 +8,6 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ProviderConfig(BaseModel):
-    """Configuration for the LLM provider used to generate responses."""
 
     type: Literal["mock", "openai", "anthropic"] = "mock"
     model: str = "mock-llm-v1"
@@ -17,7 +15,6 @@ class ProviderConfig(BaseModel):
 
 
 class PromptConfig(BaseModel):
-    """Where the prompt template comes from: an inline string or a file path."""
 
     template: str | None = None
     template_path: str | None = None
@@ -35,7 +32,6 @@ class PromptConfig(BaseModel):
         return self
 
     def resolve(self, base_dir: Path) -> str:
-        """Return the raw Jinja2 template text."""
         if self.template is not None:
             return self.template
         path = Path(self.template_path)  # type: ignore[arg-type]
@@ -45,7 +41,6 @@ class PromptConfig(BaseModel):
 
 
 class EvaluatorConfig(BaseModel):
-    """A single evaluator to run against each case's response."""
 
     type: Literal["exact_match", "contains", "regex_match", "keyword_overlap"]
     options: dict[str, Any] = Field(default_factory=dict)
@@ -53,7 +48,6 @@ class EvaluatorConfig(BaseModel):
 
 
 class EvalGuardConfig(BaseModel):
-    """Top-level EvalGuard run configuration, loaded from YAML."""
 
     name: str = "evalguard-run"
     provider: ProviderConfig = Field(default_factory=ProviderConfig)
@@ -77,7 +71,6 @@ class EvalGuardConfig(BaseModel):
 
 
 def load_config(config_path: str | Path) -> EvalGuardConfig:
-    """Load and validate an EvalGuard YAML config file."""
     config_path = Path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")

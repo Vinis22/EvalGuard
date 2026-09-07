@@ -1,16 +1,3 @@
-"""A deterministic, dependency-free mock LLM provider.
-
-There is no real API key available in this environment, so EvalGuard ships
-with ``MockLLMProvider`` as its default provider. It is intentionally
-*deterministic* (same input always produces the same output) so that eval
-runs are reproducible in CI, and intentionally *imperfect* — it simulates a
-simple keyword-based support-ticket classifier that gets some edge cases
-wrong, which is exactly the kind of regression EvalGuard is meant to catch.
-
-Swap in a real provider (OpenAI, Anthropic, ...) by implementing
-``LLMProvider`` — see ``evalguard/providers/base.py`` — and pointing
-``provider.type`` at it in your YAML config.
-"""
 from __future__ import annotations
 
 import hashlib
@@ -29,19 +16,6 @@ _GREETINGS = ("hi", "hello", "hey", "greetings")
 
 
 class MockLLMProvider(LLMProvider):
-    """Deterministic mock provider simulating a support-ticket assistant.
-
-    Behavior is a mix of two modes, chosen by looking at the prompt:
-
-    - If the prompt looks like a *classification* task (contains the word
-      "categor" or "classif"), it returns a single category label picked by
-      keyword overlap against ``_CATEGORY_KEYWORDS``. On a tie or when no
-      keyword matches, it deterministically falls back to "general" — which
-      is a realistic source of misclassification, on purpose.
-    - Otherwise, it echoes a short deterministic "canned support reply"
-      built from the prompt content, long enough for ``contains`` /
-      ``keyword_overlap`` evaluators to exercise real matching logic.
-    """
 
     def complete(self, prompt: str) -> str:
         lowered = prompt.lower()
