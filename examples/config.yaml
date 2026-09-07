@@ -1,0 +1,30 @@
+# EvalGuard example: a customer-support ticket triage prompt.
+#
+# This exercises the full pipeline (Jinja2 prompt rendering, MockLLM,
+# multiple evaluator types) against a realistic dataset that mixes passing
+# and failing cases, so `evalguard run examples/config.yaml` demonstrates
+# what a real regression actually looks like.
+
+name: support-ticket-triage
+
+provider:
+  type: mock
+  model: mock-llm-v1
+
+prompt:
+  template_path: prompt.jinja
+
+dataset_path: dataset.jsonl
+
+evaluators:
+  - type: contains
+    weight: 1.0
+    options:
+      case_sensitive: false
+  - type: keyword_overlap
+    weight: 1.0
+    options:
+      min_overlap: 0.3
+
+min_score: 0.45
+report_dir: ../reports

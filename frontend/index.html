@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvalGuard Report Viewer</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1c202b;
+    --border: #262b38;
+    --text: #e7e9ee;
+    --muted: #9aa2b1;
+    --accent: #6d8dff;
+    --accent-2: #8f6dff;
+    --good: #34d399;
+    --good-bg: rgba(52, 211, 153, 0.12);
+    --bad: #f87171;
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 10% -10%, #1a1f2e 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 24px 96px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: 0.02em; color: var(--muted); margin-bottom: 6px; }
+  .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 12px var(--accent); }
+  h1 { font-size: 28px; margin: 4px 0 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; max-width: 640px; }
+
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    padding: 40px 24px;
+    text-align: center;
+    background: var(--panel);
+    transition: border-color 0.15s ease, background 0.15s ease;
+    cursor: pointer;
+  }
+  .dropzone.dragover { border-color: var(--accent); background: var(--panel-2); }
+  .dropzone h3 { margin: 0 0 6px; font-size: 16px; }
+  .dropzone p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: none; border-radius: 10px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+  input[type=file] { display: none; }
+  textarea.paste-area {
+    width: 100%; min-height: 90px; margin-top: 16px; resize: vertical;
+    background: #0b0d12; border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: var(--mono); font-size: 12.5px; padding: 12px;
+  }
+  .error-box {
+    margin-top: 16px; padding: 12px 16px; border-radius: 10px;
+    background: var(--bad-bg); color: var(--bad); font-size: 13px; display: none;
+  }
+  .error-box.show { display: block; }
+
+  #dashboard { display: none; margin-top: 40px; }
+  #dashboard.show { display: block; }
+
+  header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .verdict {
+    margin: 20px 0 28px; padding: 24px 28px; border-radius: 16px; border: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--panel), var(--panel-2));
+    display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  }
+  .verdict.pass { border-color: rgba(52,211,153,0.35); }
+  .verdict.fail { border-color: rgba(248,113,113,0.35); }
+  .verdict-left { display: flex; align-items: center; gap: 20px; }
+  .score-ring { width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+  .verdict.pass .score-ring { background: conic-gradient(var(--good) calc(var(--pct) * 1%), #263427 0); }
+  .verdict.fail .score-ring { background: conic-gradient(var(--bad) calc(var(--pct) * 1%), #34252a 0); }
+  .score-ring-inner { width: 68px; height: 68px; border-radius: 50%; background: var(--panel); display: flex; align-items: center; justify-content: center; }
+  .verdict-title { font-size: 17px; font-weight: 700; }
+  .verdict.pass .verdict-title { color: var(--good); }
+  .verdict.fail .verdict-title { color: var(--bad); }
+  .verdict-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .badge { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+  .badge.pass { background: var(--good-bg); color: var(--good); }
+  .badge.fail { background: var(--bad-bg); color: var(--bad); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat .value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+  .stat .value.good { color: var(--good); }
+  .stat .value.bad { color: var(--bad); }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin: 32px 0 16px; gap: 12px; flex-wrap: wrap; }
+  .toolbar h2 { font-size: 16px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0; }
+  .filters { display: flex; gap: 8px; }
+  .filter-btn {
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 999px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-weight: 600;
+  }
+  .filter-btn.active { color: var(--text); border-color: var(--accent); background: var(--panel-2); }
+
+  .case { border: 1px solid var(--border); background: var(--panel); border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
+  .case-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; cursor: pointer; gap: 12px; }
+  .case-head:hover { background: var(--panel-2); }
+  .case-head-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .case-id { font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .case-desc { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .case-score { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+  .chev { color: var(--muted); font-size: 12px; transition: transform 0.15s ease; }
+  .case.open .chev { transform: rotate(90deg); }
+  .case-body { display: none; padding: 4px 18px 18px; border-top: 1px solid var(--border); }
+  .case.open .case-body { display: block; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } }
+  .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+  pre.code-block {
+    background: #0b0d12; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap;
+    word-break: break-word; margin: 0; color: #d5d9e2; max-height: 260px; overflow: auto;
+  }
+  .evals { margin-top: 16px; }
+  .eval-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .eval-row:last-child { border-bottom: none; }
+  .eval-icon { font-weight: 700; width: 18px; text-align: center; flex-shrink: 0; }
+  .eval-icon.pass { color: var(--good); }
+  .eval-icon.fail { color: var(--bad); }
+  .eval-name { font-family: var(--mono); font-weight: 700; color: var(--text); flex-shrink: 0; }
+  .eval-detail { color: var(--muted); }
+  footer { margin-top: 48px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="dot"></span> EVALGUARD REPORT VIEWER</div>
+  <h1>View an EvalGuard JSON report</h1>
+  <p class="sub">Drop the <code>report.json</code> file produced by <code>evalguard run</code>, choose it from disk, or paste its contents below — everything runs locally in your browser, nothing is uploaded anywhere.</p>
+
+  <div class="dropzone" id="dropzone">
+    <h3>Drop report.json here</h3>
+    <p>or</p>
+    <button class="btn" id="pick-btn" type="button">Choose file</button>
+    <input type="file" id="file-input" accept="application/json,.json">
+    <textarea class="paste-area" id="paste-area" placeholder="...or paste raw JSON here and press Ctrl+Enter"></textarea>
+    <div class="error-box" id="error-box"></div>
+  </div>
+
+  <div id="dashboard">
+    <header class="top">
+      <div>
+        <div class="meta" id="report-meta"></div>
+        <h1 id="report-name" style="margin-top: 4px;"></h1>
+      </div>
+      <button class="btn secondary" id="load-another">Load another report</button>
+    </header>
+
+    <div class="verdict" id="verdict">
+      <div class="verdict-left">
+        <div class="score-ring" id="score-ring"><div class="score-ring-inner" id="score-ring-text"></div></div>
+        <div>
+          <div class="verdict-title" id="verdict-title"></div>
+          <div class="verdict-sub" id="verdict-sub"></div>
+        </div>
+      </div>
+      <div class="badge" id="verdict-badge"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">Total Cases</div><div class="value" id="stat-total">-</div></div>
+      <div class="stat"><div class="label">Passed</div><div class="value good" id="stat-passed">-</div></div>
+      <div class="stat"><div class="label">Failed</div><div class="value bad" id="stat-failed">-</div></div>
+      <div class="stat"><div class="label">Overall Score</div><div class="value" id="stat-score">-</div></div>
+    </div>
+
+    <div class="toolbar">
+      <h2 id="cases-heading">Case Results</h2>
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pass">Passed</button>
+        <button class="filter-btn" data-filter="fail">Failed</button>
+      </div>
+    </div>
+
+    <section id="cases-container"></section>
+  </div>
+
+  <footer>EvalGuard Report Viewer — runs entirely client-side via FileReader, no server or network calls.</footer>
+</div>
+
+<script>
+(function () {
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const pickBtn = document.getElementById('pick-btn');
+  const pasteArea = document.getElementById('paste-area');
+  const errorBox = document.getElementById('error-box');
+  const dashboard = document.getElementById('dashboard');
+  const loadAnotherBtn = document.getElementById('load-another');
+
+  let currentReport = null;
+  let currentFilter = 'all';
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.classList.add('show');
+  }
+
+  function clearError() {
+    errorBox.textContent = '';
+    errorBox.classList.remove('show');
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function validateReport(data) {
+    if (typeof data !== 'object' || data === null) {
+      throw new Error('Report must be a JSON object.');
+    }
+    const requiredKeys = ['name', 'overall_score', 'overall_passed', 'total_cases', 'cases'];
+    for (const key of requiredKeys) {
+      if (!(key in data)) {
+        throw new Error(`Report is missing required field "${key}". Is this a valid EvalGuard report.json?`);
+      }
+    }
+    if (!Array.isArray(data.cases)) {
+      throw new Error('Report field "cases" must be an array.');
+    }
+    return data;
+  }
+
+  function loadReport(jsonText) {
+    let data;
+    try {
+      data = JSON.parse(jsonText);
+    } catch (err) {
+      showError('Could not parse JSON: ' + err.message);
+      return;
+    }
+    try {
+      validateReport(data);
+    } catch (err) {
+      showError(err.message);
+      return;
+    }
+    clearError();
+    currentReport = data;
+    currentFilter = 'all';
+    document.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.filter === 'all'));
+    renderDashboard(data);
+    dashboard.classList.add('show');
+  }
+
+  function renderDashboard(data) {
+    document.getElementById('report-name').textContent = data.name || 'EvalGuard Report';
+    const provider = data.provider || {};
+    const metaBits = [];
+    if (provider.type) metaBits.push(`Provider: ${provider.type}${provider.model ? ' / ' + provider.model : ''}`);
+    if (data.generated_at) metaBits.push(`Generated ${data.generated_at}`);
+    if (typeof data.duration_seconds === 'number') metaBits.push(`Duration ${data.duration_seconds}s`);
+    document.getElementById('report-meta').textContent = metaBits.join(' · ');
+
+    const pct = Math.round((data.overall_score || 0) * 1000) / 10;
+    const minPct = Math.round((data.min_score || 0) * 1000) / 10;
+    const passed = !!data.overall_passed;
+
+    const verdict = document.getElementById('verdict');
+    verdict.classList.toggle('pass', passed);
+    verdict.classList.toggle('fail', !passed);
+    document.getElementById('score-ring').style.setProperty('--pct', pct);
+    document.getElementById('score-ring-text').textContent = pct + '%';
+    document.getElementById('verdict-title').textContent = passed ? 'GATE PASSED' : 'GATE FAILED';
+    document.getElementById('verdict-sub').textContent = `Threshold: ${minPct}% · Overall score: ${pct}%`;
+    const badge = document.getElementById('verdict-badge');
+    badge.textContent = passed ? 'PASS' : 'FAIL';
+    badge.className = 'badge ' + (passed ? 'pass' : 'fail');
+
+    document.getElementById('stat-total').textContent = data.total_cases ?? data.cases.length;
+    document.getElementById('stat-passed').textContent = data.passed_cases ?? data.cases.filter((c) => c.passed).length;
+    document.getElementById('stat-failed').textContent = data.failed_cases ?? data.cases.filter((c) => !c.passed).length;
+    document.getElementById('stat-score').textContent = pct + '%';
+
+    renderCases(data.cases);
+  }
+
+  function renderCases(cases) {
+    const container = document.getElementById('cases-container');
+    const filtered = cases.filter((c) => {
+      if (currentFilter === 'pass') return c.passed;
+      if (currentFilter === 'fail') return !c.passed;
+      return true;
+    });
+
+    document.getElementById('cases-heading').textContent = `Case Results (${filtered.length}/${cases.length})`;
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<p style="color: var(--muted); font-size: 14px;">No cases match this filter.</p>';
+      return;
+    }
+
+    container.innerHTML = filtered.map((c, idx) => {
+      const scorePct = Math.round((c.score || 0) * 1000) / 10;
+      const evaluations = Array.isArray(c.evaluations) ? c.evaluations : [];
+      const evalHtml = evaluations.map((ev) => {
+        const evPct = Math.round((ev.score || 0) * 1000) / 10;
+        return `
+          <div class="eval-row">
+            <span class="eval-icon ${ev.passed ? 'pass' : 'fail'}">${ev.passed ? '✓' : '✗'}</span>
+            <span class="eval-name">${escapeHtml(ev.evaluator || '')}</span>
+            <span class="eval-detail">score ${evPct}% — ${escapeHtml(ev.detail || '')}</span>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="case" id="viewer-case-${idx}">
+          <div class="case-head" data-toggle="viewer-case-${idx}">
+            <div class="case-head-left">
+              <span class="chev">&#9656;</span>
+              <span class="case-id">${escapeHtml(c.id || '')}</span>
+              <span class="case-desc">${escapeHtml(c.description || '')}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="case-score" style="color: ${c.passed ? 'var(--good)' : 'var(--bad)'};">${scorePct}%</span>
+              <span class="badge ${c.passed ? 'pass' : 'fail'}">${c.passed ? 'PASS' : 'FAIL'}</span>
+            </div>
+          </div>
+          <div class="case-body">
+            <div class="field-label">Rendered Prompt</div>
+            <pre class="code-block">${escapeHtml(c.prompt || '')}</pre>
+            <div class="grid-2">
+              <div>
+                <div class="field-label">Expected</div>
+                <pre class="code-block">${escapeHtml(JSON.stringify(c.expected || {}, null, 2))}</pre>
+              </div>
+              <div>
+                <div class="field-label">Actual Response</div>
+                <pre class="code-block">${escapeHtml(c.actual || '')}</pre>
+              </div>
+            </div>
+            <div class="evals">
+              <div class="field-label">Evaluations</div>
+              ${evalHtml || '<p style="color: var(--muted); font-size: 13px;">No evaluator detail available.</p>'}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    container.querySelectorAll('.case-head').forEach((headEl) => {
+      headEl.addEventListener('click', () => {
+        document.getElementById(headEl.dataset.toggle).classList.toggle('open');
+      });
+    });
+  }
+
+  document.querySelectorAll('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      currentFilter = btn.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      if (currentReport) renderCases(currentReport.cases);
+    });
+  });
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => loadReport(reader.result);
+    reader.onerror = () => showError('Could not read the selected file.');
+    reader.readAsText(file);
+  });
+
+  ['dragenter', 'dragover'].forEach((evt) => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach((evt) => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+    });
+  });
+  dropzone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => loadReport(reader.result);
+    reader.onerror = () => showError('Could not read the dropped file.');
+    reader.readAsText(file);
+  });
+
+  pasteArea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      loadReport(pasteArea.value);
+    }
+  });
+
+  loadAnotherBtn.addEventListener('click', () => {
+    dashboard.classList.remove('show');
+    fileInput.value = '';
+    pasteArea.value = '';
+    clearError();
+    currentReport = null;
+  });
+})();
+</script>
+</body>
+</html>
