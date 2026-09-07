@@ -59,9 +59,6 @@ class MockLLMProvider(LLMProvider):
             return "general"
 
         top_categories = sorted(c for c, s in scores.items() if s == best_score)
-        # Deterministic tie-break: pick based on a stable hash of the prompt
-        # rather than always the alphabetically-first one, so behavior isn't
-        # trivially predictable but is still 100% reproducible.
         if len(top_categories) > 1:
             digest = hashlib.sha256(lowered_prompt.encode("utf-8")).hexdigest()
             index = int(digest[:8], 16) % len(top_categories)

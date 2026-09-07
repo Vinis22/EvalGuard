@@ -1,7 +1,4 @@
 services:
-  # Roda o eval e termina (isso é esperado - é uma tarefa de linha de comando, não um servidor).
-  # Não sobe com "docker compose up". Rode manualmente quando quiser gerar/atualizar o relatório:
-  #   docker compose run --rm evalguard
   evalguard:
     build: .
     container_name: evalguard-cli
@@ -11,9 +8,6 @@ services:
       - ./examples:/app/examples
     command: ["run", "examples/config.yaml"]
 
-  # Fica rodando o tempo todo, servindo o visualizador de relatório.
-  #   docker compose up
-  #   -> http://localhost:8080
   frontend:
     image: nginx:alpine
     container_name: evalguard-frontend

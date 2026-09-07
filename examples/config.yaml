@@ -1,10 +1,3 @@
-# EvalGuard example: a customer-support ticket triage prompt.
-#
-# This exercises the full pipeline (Jinja2 prompt rendering, MockLLM,
-# multiple evaluator types) against a realistic dataset that mixes passing
-# and failing cases, so `evalguard run examples/config.yaml` demonstrates
-# what a real regression actually looks like.
-
 name: support-ticket-triage
 
 provider:

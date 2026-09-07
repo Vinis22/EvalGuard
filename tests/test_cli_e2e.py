@@ -18,9 +18,6 @@ def test_cli_run_end_to_end(tmp_path: Path) -> None:
         ["run", str(EXAMPLES_CONFIG), "--report-dir", str(report_dir)],
     )
 
-    # The example dataset intentionally mixes passing and failing cases so
-    # the report is realistic (not a fake 100%), while the configured
-    # threshold is calibrated so the overall gate still passes.
     assert result.exit_code == 0, result.output
 
     json_report = report_dir / "report.json"
