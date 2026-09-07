@@ -46,6 +46,12 @@ instead of function return values.
 4. Score the response with `exact_match`, `contains`, `regex_match`, or `keyword_overlap`.
 5. Get an HTML report to look at and a JSON report your CI pipeline can gate on.
 
+> **Heads up:** out of the box, this repo runs against `MockLLM` — a deterministic fake model with
+> pre-scripted answers, not a real LLM. It exists so you can see the whole pipeline (render prompt
+> → get response → score → report → pass/fail gate) working with zero setup and zero API cost.
+> The included example is a demo of the *mechanism*, not a real quality measurement of any model.
+> To test a real model, wire up a provider — see **Plugging in a real LLM provider** below.
+
 ## Quickstart (under a minute)
 
 ```bash
@@ -65,6 +71,25 @@ model handles well and some it doesn't (a generic pricing question, a cancellati
 one that matters — a suspected account breach that gets a generic password-reset reply instead of
 a security escalation). That's the point: a fake "100% passing" demo teaches you nothing about
 whether the tool actually catches regressions. This one does.
+
+## Running with Docker
+
+No local Python needed — everything runs in containers.
+
+```bash
+docker compose up -d --build      # starts the report viewer, stays running
+docker compose run --rm evalguard # runs the eval suite, writes reports/, then exits
+```
+
+Then open **http://localhost:8080** and click **"Load reports/report.json"**.
+
+Two separate services, on purpose:
+
+- `frontend` (nginx) is a long-running server — it's the only one `docker compose up` starts, and
+  it stays up.
+- `evalguard` is a one-shot CLI job, not a server. It's excluded from `up` (it's on the `tools`
+  profile) so it doesn't show up as "exited" and look like a crash — that's just it finishing its
+  job. Run it explicitly with `docker compose run --rm evalguard` whenever you want a fresh report.
 
 ## What the HTML report looks like
 
@@ -162,38 +187,44 @@ of starting from a blank file.
 built from day one behind an interface so a real backend is a small, additive change:
 
 ```python
-# evalguard/providers/openai_llm.py
+# evalguard/providers/anthropic_llm.py
 from evalguard.providers.base import LLMProvider
 
-class OpenAIProvider(LLMProvider):
+class AnthropicProvider(LLMProvider):
     def complete(self, prompt: str) -> str:
-        import openai
-        client = openai.OpenAI(api_key=self.options["api_key"])
-        response = client.chat.completions.create(
+        import anthropic
+        client = anthropic.Anthropic(api_key=self.options["api_key"])
+        response = client.messages.create(
             model=self.model,
+            max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
         )
-        return response.choices[0].message.content
+        return response.content[0].text
 ```
 
 Then register it and point your config at it:
 
 ```python
 # evalguard/providers/registry.py
-from evalguard.providers.openai_llm import OpenAIProvider
-PROVIDERS["openai"] = OpenAIProvider
+from evalguard.providers.anthropic_llm import AnthropicProvider
+PROVIDERS["anthropic"] = AnthropicProvider
 ```
 
 ```yaml
 provider:
-  type: openai
-  model: gpt-4o-mini
+  type: anthropic
+  model: claude-sonnet-5
   options:
-    api_key: ${OPENAI_API_KEY}
+    api_key: ${ANTHROPIC_API_KEY}
 ```
 
 Nothing else in the pipeline (dataset loading, templating, evaluators, reporting) needs to change
-— that's the whole point of the interface.
+— that's the whole point of the interface. The same pattern works for OpenAI, a local model server,
+or anything else with an HTTP API — swap the `complete()` body.
+
+> **Note:** a Claude Pro / Claude Code subscription does not include API access. Calling a real
+> model here requires a separate Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
+> (usage-billed, independent of any Claude Pro subscription).
 
 ## The frontend report viewer
 
